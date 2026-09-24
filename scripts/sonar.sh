@@ -21,7 +21,8 @@
 # Community Edition tracks a single branch per project.
 set -e
 
-cd "$(dirname "$0")/../"
+# The repository is wherever the caller stands. Walking up from $0 landed in
+# /usr/local, since that is where this is installed.
 
 delete_after=""
 while [ $# -gt 0 ]; do
