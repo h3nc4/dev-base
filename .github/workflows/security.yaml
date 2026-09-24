@@ -38,8 +38,16 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Name the published image
         run: echo "IMAGE_REPO=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')" >>"${GITHUB_ENV}"
+      # The same derivation publish-image.yaml uses, so the scan names the tag that
+      # workflow actually pushed rather than a number in a file that can drift.
       - id: read_tag
-        run: echo "tag=$(cat .github/VERSION)" >>"${GITHUB_OUTPUT}"
+        run: |
+          base="$(sed -n 's|^FROM debian:\([a-z0-9.]*\)@.*|debian-\1|p' Dockerfile | head -n 1)"
+          case "${base}" in
+            debian-?*) ;;
+            *) echo "::error::could not read the Debian tag from the Dockerfile"; exit 1 ;;
+          esac
+          echo "tag=${base}" >>"${GITHUB_OUTPUT}"
       - name: Run docker/login-action
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
