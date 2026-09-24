@@ -1,0 +1,67 @@
+# Copyright (C) 2026  Henrique Almeida
+# This file is part of dev-base.
+#
+# dev-base is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# dev-base is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with dev-base.  If not, see <https://www.gnu.org/licenses/>.
+
+name: Security Analysis
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
+  schedule:
+    - cron: "41 3 * * *" # Daily at 03:41 UTC
+
+jobs:
+  image:
+    name: Image Vulnerabilities
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Run actions/checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Name the published image
+        run: echo "IMAGE_REPO=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')" >>"${GITHUB_ENV}"
+      - id: read_tag
+        run: echo "tag=$(cat .github/VERSION)" >>"${GITHUB_OUTPUT}"
+      - name: Run docker/login-action
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # Five repositories build their releases with this toolchain, so a CVE here is a
+      # supply-chain problem for all of them at once.
+      - name: Scan the published image
+        env:
+          IMAGE: ${{ env.IMAGE_REPO }}:${{ steps.read_tag.outputs.tag }}
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${PWD}:/out" \
+            aquasec/trivy:latest image \
+              --severity HIGH,CRITICAL \
+              --ignore-unfixed \
+              --format sarif \
+              --output /out/trivy.sarif \
+              "${IMAGE}"
+      - name: Run github/codeql-action/upload-sarif
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-dev-base
