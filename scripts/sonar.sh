@@ -93,9 +93,9 @@ fi
 
 echo "Analysing against ${SONAR_HOST_URL}${project_key:+ as ${project_key}}"
 
-# Held to h3nc4 like the other repositories. It was h3nc4-no-coverage while unreachable
-# branches in GestureTracker put 100 percent out of reach, and folding its state fixed that.
-sonar_gate="${SONAR_GATE:-}"
+# The gate comes out of the repository's own properties file, so a pre-push run and CI hold it
+# to the same one. The scanner ignores the key, and without it the server default applies.
+sonar_gate="${SONAR_GATE:-$(sed -n 's/^h3nc4\.gate=[[:space:]]*//p' sonar-project.properties | head -n 1)}"
 
 # The gate is chosen per project, so the project has to exist first. Left to the
 # scan it would be created under the default gate instead.
