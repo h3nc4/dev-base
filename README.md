@@ -5,11 +5,20 @@ The layer every dev container here was building for itself. Debian, a locale, a 
 A repository builds on this rather than on `debian:13`, then adds the toolchain it needs:
 
 ```dockerfile
+ARG USER="dev"
+
 FROM h3nc4/dev-base:debian-13@sha256:... AS main
+USER root
 # node, rust, go, the Android SDK, whatever this repository is for
+
 FROM scratch AS final
+ARG USER
+ENV USER="${USER}"
 COPY --from=main / /
+USER "${USER}"
 ```
+
+Two of those lines are there for a reason. The image ends as `dev`, so anything that installs needs `USER root` first, and the name has to stay `dev` because this image already created that user. A final stage naming the repository instead fails to start with `unable to find user`. A toolchain that adds to `PATH` is carried across the UID remap, so `/usr/local/go/bin` still resolves after the entrypoint re-executes.
 
 ## What it provides
 
