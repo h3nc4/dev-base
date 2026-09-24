@@ -41,6 +41,14 @@ if [ "${target_uid}" != "${current_uid}" ]; then
   usermod -o -u "${target_uid}" "${username}"
 fi
 
+# The PATH doas threw away on the way in, so a toolchain under /usr/local/go/bin
+# or /opt is still reachable on the other side of the re-exec.
+if [ -n "${DEV_PATH:-}" ]; then
+  PATH="${DEV_PATH}"
+  export PATH
+  unset DEV_PATH
+fi
+
 # Re-execute as the updated user
 echo "Re-executing as ${username} (UID:GID = ${target_uid}:${target_gid})..."
 exec gosu "${username}" /bin/sh "$@"

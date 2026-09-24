@@ -62,6 +62,10 @@ if [ -z "${DEVCONTAINER}" ]; then
   if [ "${host_gid}" != "${current_gid}" ] || [ "${host_uid}" != "${current_uid}" ]; then
     echo "Current UID:GID (${current_uid}:${current_gid}) differs from host (${host_uid}:${host_gid})"
     echo "Updating ${USER_NAME} user to match host..."
+    # doas replaces PATH with its own even under keepenv, which dropped the entries
+    # an image adds for its toolchain. switch-user.sh puts this one back.
+    DEV_PATH="${PATH}"
+    export DEV_PATH
     exec doas /usr/local/bin/switch-user.sh "${USER_NAME}" "${host_uid}" "${host_gid}" "$0" "$@"
   fi
 fi
