@@ -25,18 +25,10 @@ ARG GID="1000"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Set before anything installs, so a repository building on this inherits it too.
-# `copyright` stays for redistribution, and manual pages because mandb runs on start.
-RUN printf '%s\n' \
-  'path-exclude /usr/share/doc/*' \
-  'path-include /usr/share/doc/*/copyright' \
-  'path-exclude /usr/share/locale/*' \
-  'path-include /usr/share/locale/en*' \
-  'path-include /usr/share/locale/locale.alias' \
-  >/etc/dpkg/dpkg.cfg.d/01-trim
-
 RUN apt-get update -qq
 
+# en_US is generated as the default, not as the only one. The definitions stay, so a
+# developer who needs another locale runs locale-gen and gets it.
 RUN apt-get install --no-install-recommends -y -qq locales && \
   echo "en_US.UTF-8 UTF-8" >/etc/locale.gen && \
   locale-gen en_US.UTF-8 && \
@@ -96,19 +88,10 @@ COPY scripts/sonar.sh /usr/local/bin/sonar
 RUN chmod +x /usr/local/bin/switch-user.sh /usr/local/bin/entrypoint.sh \
   /usr/local/bin/sonar
 
+# The apt lists and the caches, which any later install fetches again. Documentation,
+# locales and their definitions stay: this is a full Debian to develop in.
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN rm -rf /var/cache/* /var/log/* /tmp/*
-
-# The locale definition sources locale-gen reads, 17MB, and it has already run.
-# Generating another locale in a container built on this means installing them back.
-RUN rm -rf /usr/share/i18n
-
-# The exclusions above bind later installs alone, so what debian:13 shipped is still
-# here. Removing it took the image from 495MB to 402MB.
-RUN find /usr/share/locale -mindepth 1 -maxdepth 1 \
-  ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + && \
-  find /usr/share/doc -mindepth 1 ! -type d ! -name copyright -delete && \
-  find /usr/share/doc -mindepth 1 -type d -empty -delete
 
 ################################################################################
 # Squashed, so a repository building on this inherits one layer rather than ten.
