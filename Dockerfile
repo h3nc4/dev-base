@@ -25,7 +25,15 @@ ARG GID="1000"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update -qq
+# A caching mirror on the network this is built on, so a package is fetched from
+# the internet once rather than once per build. Empty by default, which is what
+# CI uses: its runners have no route to a LAN mirror and go straight to Debian.
+ARG APT_MIRROR=""
+
+RUN if [ -n "${APT_MIRROR}" ]; then \
+    sed -i "s|http://deb.debian.org|${APT_MIRROR}|g" \
+      /etc/apt/sources.list.d/debian.sources; \
+  fi && apt-get update -qq
 
 # en_US is generated as the default, not as the only one. The definitions stay, so a
 # developer who needs another locale runs locale-gen and gets it.
@@ -90,7 +98,11 @@ RUN chmod +x /usr/local/bin/switch-user.sh /usr/local/bin/entrypoint.sh \
 
 # The apt lists and the caches, which any later install fetches again. Documentation,
 # locales and their definitions stay: this is a full Debian to develop in.
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* && \
+  if [ -n "${APT_MIRROR}" ]; then \
+    sed -i "s|${APT_MIRROR}|http://deb.debian.org|g" \
+      /etc/apt/sources.list.d/debian.sources; \
+  fi
 RUN rm -rf /var/cache/* /var/log/* /tmp/*
 
 ################################################################################
