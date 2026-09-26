@@ -29,11 +29,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 # resolving the name is the test for reaching it.
 ARG APT_MIRROR="http://debian.lan.h3nc4.com"
 
-# Added in front of Debian rather than replacing it, so apt falls back on its own
-# when the mirror resolves but does not answer. Off this network it is not added.
+# Substituted for Debian, not added beside it: apt fetches from every URI listed
+# rather than trying them in order. Off this network the name does not resolve.
 RUN host="${APT_MIRROR#http://}"; \
   if [ -n "${host}" ] && getent hosts "${host}" >/dev/null 2>&1; then \
-    sed -i "s|^URIs: http://deb.debian.org/\(.*\)$|URIs: ${APT_MIRROR}/\1 http://deb.debian.org/\1|" \
+    sed -i "s|^URIs: http://deb.debian.org/|URIs: ${APT_MIRROR}/|" \
       /etc/apt/sources.list.d/debian.sources; \
   fi && apt-get update -qq
 
@@ -102,7 +102,7 @@ RUN chmod +x /usr/local/bin/switch-user.sh /usr/local/bin/entrypoint.sh \
 # locales and their definitions stay: this is a full Debian to develop in.
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* && \
   if [ -n "${APT_MIRROR}" ]; then \
-    sed -i "s|${APT_MIRROR}/[^ ]* ||" \
+    sed -i "s|^URIs: ${APT_MIRROR}/|URIs: http://deb.debian.org/|" \
       /etc/apt/sources.list.d/debian.sources; \
   fi
 RUN rm -rf /var/cache/* /var/log/* /tmp/*
