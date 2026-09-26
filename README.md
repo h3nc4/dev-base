@@ -18,7 +18,11 @@ COPY --from=main / /
 USER "${USER}"
 ```
 
-Two of those lines are there for a reason. The image ends as `dev`, so anything that installs needs `USER root` first, and the name has to stay `dev` because this image already created that user. A final stage naming the repository instead fails to start with `unable to find user`. A toolchain that adds to `PATH` is carried across the UID remap, so `/usr/local/go/bin` still resolves after the entrypoint re-executes.
+`USER root` has to come before anything that installs, because this image ends as `dev`.
+
+`ARG USER="dev"` has to keep the name `dev`, because this image already created that user. A final stage that calls the user after the repository instead fails to start, with `unable to find user`.
+
+A toolchain that adds to `PATH` keeps it across the UID remap, so `/usr/local/go/bin` still resolves after the entrypoint re-executes.
 
 ## What it provides
 
