@@ -131,14 +131,34 @@ if [ -f "coverage-wasm.xml" ]; then
   sed -i "s|<source>/${repo_key}|<source>.|" coverage-wasm.xml
 fi
 
+# A worktree's .git points at a gitdir in the main repository, which points back at the
+# worktree. jgit follows both only when each is at its real path inside the scanner.
+src_dir="/usr/src"
+set -- "${sonar_scan_image}" "$@"
+if [ -f .git ]; then
+  common_dir="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || :)"
+  git_dir="$(git rev-parse --absolute-git-dir 2>/dev/null || :)"
+  if [ -z "${HOST_ROOT:-}" ] && [ -d "${common_dir}" ] && [ -d "${git_dir}" ]; then
+    src_dir="$(git rev-parse --show-toplevel)"
+    case "${git_dir}" in
+      "${common_dir}"/*) ;;
+      *) set -- -v "${git_dir}:${git_dir}:ro" "$@" ;;
+    esac
+    set -- -v "${common_dir}:${common_dir}:ro" "$@"
+  else
+    echo "Cannot mount this worktree's git directory. The scan runs without blame." >&2
+    set -- "$@" -Dsonar.scm.disabled=true
+  fi
+fi
+
 scan_status=0
 docker run --rm \
   --memory="${scanner_memory}" \
   ${SONAR_NETWORK:+--network=${SONAR_NETWORK}} \
   -e SONAR_HOST_URL -e SONAR_TOKEN \
   -e SONAR_SCANNER_JAVA_OPTS="${scanner_java_opts}" \
-  -v "${HOST_ROOT:-${PWD}}:/usr/src" \
-  "${sonar_scan_image}" "$@" || scan_status=$?
+  -v "${HOST_ROOT:-${PWD}}:${src_dir}" -w "${src_dir}" \
+  "$@" || scan_status=$?
 
 # Only a clean scan is cleaned up. A failure keeps its project, so the dashboard
 # the scanner just named is still there to read.
