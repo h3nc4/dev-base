@@ -53,11 +53,14 @@ jobs:
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build the pull request's image
+        if: github.event_name == 'pull_request'
+        run: docker build -t "${IMAGE_REPO}:candidate" .
       # Five repositories build their releases with this toolchain, so a CVE here is a
       # supply-chain problem for all of them at once.
-      - name: Scan the published image
+      - name: Scan the image
         env:
-          IMAGE: ${{ env.IMAGE_REPO }}:${{ steps.read_tag.outputs.tag }}
+          IMAGE: ${{ github.event_name == 'pull_request' && format('{0}:candidate', env.IMAGE_REPO) || format('{0}:{1}', env.IMAGE_REPO, steps.read_tag.outputs.tag) }}
         run: |
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
