@@ -37,6 +37,10 @@ RUN host="${APT_MIRROR#http://}"; \
       /etc/apt/sources.list.d/debian.sources; \
   fi && apt-get update -qq
 
+# The base image lags behind Debian security fixes. Upgrade its own packages
+# before installing more.
+RUN apt-get upgrade -y -qq
+
 # en_US is generated as the default, not as the only one. The definitions stay, so a
 # developer who needs another locale runs locale-gen and gets it.
 RUN apt-get install --no-install-recommends -y -qq locales && \
