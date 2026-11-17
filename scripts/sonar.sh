@@ -151,6 +151,19 @@ if [ -f .git ]; then
   fi
 fi
 
+# A directory or volume kept as the scanner's user home, so the JRE and plugins download once.
+# It goes over the image's own path, whose owner a fresh volume inherits.
+if [ -n "${SONAR_CACHE:-}" ]; then
+  set -- -v "${SONAR_CACHE}:/opt/sonar-scanner/.sonar" "$@"
+  # The scanner writes its plugins readable by itself alone, and a host directory gets read back.
+  # Its usual work directory belongs to the image's user, so this user takes a fresh one.
+  if [ "${SONAR_CACHE#/}" != "${SONAR_CACHE}" ]; then
+    host_uid="$(id -u)"
+    host_gid="$(id -g)"
+    set -- --user "${host_uid}:${host_gid}" -e SCANNER_WORKDIR_PATH=/tmp/scannerwork "$@"
+  fi
+fi
+
 scan_status=0
 docker run --rm \
   --memory="${scanner_memory}" \
